@@ -517,7 +517,7 @@ static NSMutableDictionary *_cushionTextAttributes;
 
 - (void) createChildRenderers
 {
-    unsigned childCount = [_dataSource treeMapView: _view numberOfChildrenOfItem: _item];
+    NSUInteger childCount = [_dataSource treeMapView: _view numberOfChildrenOfItem: _item];
 	
 	if ( _childRenderers == nil )
 		_childRenderers = [[NSMutableArray alloc] initWithCapacity: childCount];
