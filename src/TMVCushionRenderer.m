@@ -56,7 +56,7 @@ SEL g_renderFunction;	//optimized rendering function depending on processor feat
 	//_color will be release in setColor, so retain it allthough g_defaultCushionColor is a global variable
     _color = [g_defaultCushionColor retain]; 
 
-    memset( _surface, sizeof(_surface), 0 );
+    memset( _surface, 0, sizeof(_surface));
 
     _rect = NSZeroRect;
 
