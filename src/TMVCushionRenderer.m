@@ -53,22 +53,24 @@ SEL g_renderFunction;	//optimized rendering function depending on processor feat
 {
     self = [super init];
 
-	//_color will be release in setColor, so retain it allthough g_defaultCushionColor is a global variable
-    _color = [g_defaultCushionColor retain]; 
+    if (self) {
+        //_color will be release in setColor, so retain it allthough g_defaultCushionColor is a global variable
+        _color = [g_defaultCushionColor retain];
 
-    memset( _surface, 0, sizeof(_surface));
+        memset( _surface, 0, sizeof(_surface));
 
-    _rect = NSZeroRect;
+        _rect = NSZeroRect;
+    }
 
     return self;
 }
 
 - (id) initWithRect: (NSRect) rect
 {
-    [self init];
-
-    _rect = rect;
-
+    self = [self init];
+    if (self) {
+        _rect = rect;
+    }
     return self;
 }
 

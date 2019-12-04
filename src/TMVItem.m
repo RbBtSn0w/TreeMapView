@@ -60,21 +60,21 @@ static NSMutableDictionary *_cushionTextAttributes;
         _cushionTextAttributes = [[NSMutableDictionary alloc] init];
 }
 
-- (id) initWithDataSource: (id) dataSource delegate: (id) delegate renderedItem: (id) item treeMapView: (id) view
+- (id) initWithDataSource: (id) dataSource delegate: (id) delegate renderedItem: (id _Nullable) item treeMapView: (id) view
 {
     self = [super init];
-    
-    _item = item;
-    _dataSource = dataSource;
-    _delegate = delegate;
-    _view = view;
-	_rect = NSZeroRect;
+    if (self) {
+        _item = item;
+        _dataSource = dataSource;
+        _delegate = delegate;
+        _view = view;
+        _rect = NSZeroRect;
 
-    _cushionRenderer = [[TMVCushionRenderer alloc] init];
+        _cushionRenderer = [[TMVCushionRenderer alloc] init];
 
-    if ( ![self isLeaf] )
-        [self createChildRenderers];
-
+        if ( ![self isLeaf] )
+            [self createChildRenderers];
+    }
     return self;
 }
 
@@ -86,7 +86,7 @@ static NSMutableDictionary *_cushionTextAttributes;
     [super dealloc];
 }
 
-- (void) refreshWithItem: (id) item
+- (void) refreshWithItem: (id _Nullable) item
 {
     _item = item;
 	_rect = NSZeroRect;

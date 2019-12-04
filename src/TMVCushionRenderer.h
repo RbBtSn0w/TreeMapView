@@ -8,6 +8,7 @@
 
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
 //
 // The treemap colors all have the "brightness" BASE_BRIGHTNESS.
 // I define brightness as a number from 0 to 3.0.
@@ -47,3 +48,4 @@
 + (NSColor*) normalizeColor: (NSColor*) color;
 
 @end
+NS_ASSUME_NONNULL_END

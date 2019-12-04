@@ -8,6 +8,7 @@
 
 #import <Cocoa/Cocoa.h>
 
+NS_ASSUME_NONNULL_BEGIN
 
 @interface NSBitmapImageRep (CreationExtensions)
 
@@ -21,3 +22,5 @@
 //and adds the NSBitmapImageRep as the only image represensation
 - (NSImage*) suitableImageForView: (NSView*) view;
 @end
+
+NS_ASSUME_NONNULL_END

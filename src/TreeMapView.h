@@ -13,6 +13,8 @@
 #import <Cocoa/Cocoa.h>
 #import "TMVItem.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef TMVItem* TMVCellId;
 
 @interface TreeMapView : NSView
@@ -47,7 +49,7 @@ typedef TMVItem* TMVCellId;
 - (id) itemByCellId: (TMVCellId) cellId;
 	//returns the data item associated with a specific tree map cell (as provided by data source)
 
-- (id) selectedItem;
+- (_Nullable id) selectedItem;
 	//returns selected data item
 - (void) selectItemByCellId: (TMVCellId) cellId;
 	//selects a treemap cell
@@ -101,3 +103,4 @@ extern NSString *TMVTouchedItem;	//key for touched item in userInfo of a TreeMap
 - (void)treeMapViewItemTouched: (NSNotification*) notification;
 @end
 
+NS_ASSUME_NONNULL_END

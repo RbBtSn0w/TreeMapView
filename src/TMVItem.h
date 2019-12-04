@@ -9,6 +9,7 @@
 #import <Foundation/Foundation.h>
 #import "TMVCushionRenderer.h"
 
+NS_ASSUME_NONNULL_BEGIN
 //holds display information about one cell in the treemap
 @interface TMVItem : NSObject
 {
@@ -22,9 +23,9 @@
     TMVCushionRenderer *_cushionRenderer;
 }
 
-- (id) initWithDataSource: (id) dataSource delegate: (id) delegate renderedItem: (id) item treeMapView: (id) view;
+- (id) initWithDataSource: (id) dataSource delegate: (id) delegate renderedItem: (id _Nullable) item treeMapView: (id) view;
 
-- (void) refreshWithItem: (id) item;
+- (void) refreshWithItem: (id _Nullable) item;
 
 - (void) setCushionColor: (NSColor*) color; 
 
@@ -44,6 +45,7 @@
 - (NSUInteger) childCount;
 
 - (NSRect) rect;
-- (TMVItem *) hitTest: (NSPoint) aPoint;
+- (TMVItem *_Nullable) hitTest: (NSPoint) aPoint;
 
 @end
+NS_ASSUME_NONNULL_END

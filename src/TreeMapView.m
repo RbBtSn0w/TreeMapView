@@ -34,8 +34,8 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 
 - (id)initWithFrame:(NSRect)frameRect
 {
-    [super initWithFrame:frameRect];
-	
+    self = [super initWithFrame:frameRect];
+    
     if ([[self superclass] instancesRespondToSelector:@selector(awakeFromNib)])
         [super awakeFromNib];
 
@@ -519,7 +519,7 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 - (NSString *) view: (NSView *) view stringForToolTip: (NSToolTipTag) tag point: (NSPoint) point userData: (void *) userData
 {
 	//tooltips don't work satisfyingly, so disable them
-	return nil;
+	return @"";
 /*
 	if ( delegate != nil && [delegate respondsToSelector: @selector(treeMapView: getToolTipByItem:)] )
     {

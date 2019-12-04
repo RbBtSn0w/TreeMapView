@@ -8,6 +8,8 @@
 
 #import <Cocoa/Cocoa.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface ZoomInfo : NSObject
 {
 	NSImage *_image; //retained
@@ -33,3 +35,5 @@
 - (BOOL) hasFinished;
 
 @end
+
+NS_ASSUME_NONNULL_END
