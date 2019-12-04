@@ -26,6 +26,7 @@ typedef TMVItem* TMVCellId;
 	id _zoomer;
 }
 
+- (void) invalidateCanvasCache; //just delete the cached view content
 - (void) reloadData;
 - (void) reloadAndPerformZoomIntoItem: (NSArray*) path;
 	//before relaod, a zoom in effect is shown
@@ -37,11 +38,14 @@ typedef TMVItem* TMVCellId;
 	//"path" identifies the data item out of which will be zoomed;
 	//the path has to be relative to the new root (root AFTER the reload)
 	//(<new root><child1><child2><itemtoZoomOut>)
+- (BOOL) zoomingInProgress;
+    //indicates whether the view is currently zooming in or out,
+    //so UI commands can be disabled which are not available while zooming
 
 - (TMVCellId) cellIdByPoint: (NSPoint) point inViewCoords: (BOOL) viewCoords;
 	//does a hit test; if "viewCoords" is false, "point" is considered to be in window coordinates
 - (id) itemByCellId: (TMVCellId) cellId;
-	//returns the data item associated with a specific tree map cell (provided by data source)
+	//returns the data item associated with a specific tree map cell (as provided by data source)
 
 - (id) selectedItem;
 	//returns selected data item
@@ -71,7 +75,7 @@ typedef TMVItem* TMVCellId;
 // (there must be one (and only one!) root item)
 @interface NSObject(TreeMapViewDataSource)
 // required
-- (id) treeMapView: (TreeMapView*) view child: (unsigned) index ofItem: (id) item;
+- (id) treeMapView: (TreeMapView*) view child: (NSUInteger) index ofItem: (id) item;
 - (BOOL) treeMapView: (TreeMapView*) view isNode: (id) item;
 - (unsigned) treeMapView: (TreeMapView*) view numberOfChildrenOfItem: (id) item;
 - (unsigned long long) treeMapView: (TreeMapView*) view weightByItem: (id) item;

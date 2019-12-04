@@ -7,7 +7,10 @@
 //
 
 #import "TMVCushionRenderer.h"
+
+#ifdef __ppc__
 #import <ppc_intrinsics.h>	//special PowerPC (603+) instructions
+#endif //__ppc__
 
 #define MAX_RGB_VALUE 1.0f
 
@@ -18,7 +21,7 @@ SEL g_renderFunction;	//optimized rendering function depending on processor feat
 
 @interface TMVCushionRenderer(Private)
 
-+ (void) distributeRGB1: (float*) first toRGB2: (float*) second toRGB3: (float*) third;
++ (void) distributeRGB1: (CGFloat*) first toRGB2: (CGFloat*) second toRGB3: (CGFloat*) third;
 
 @end
 
@@ -36,10 +39,14 @@ SEL g_renderFunction;	//optimized rendering function depending on processor feat
 	
 	//determine optimal rendering function
 	g_renderFunction = @selector(renderCushionInBitmapGeneric:);
+	
+	//query for the existance of PPC603's square root functions (frsqrte)
+#ifdef __ppc__
 	long gestaltValue = 0;
 	OSErr result = Gestalt( gestaltPowerPCProcessorFeatures, &gestaltValue );
-	if ( ( gestaltValue & gestaltPowerPCHasSquareRootInstructions ) != 0 )
+	if ( result == 0 && ( gestaltValue & gestaltPowerPCHasSquareRootInstructions ) != 0 )
 		g_renderFunction = @selector(renderCushionInBitmapPPC603Single:);
+#endif //__ppc__
 }
 
 - (id) init
@@ -99,12 +106,12 @@ SEL g_renderFunction;	//optimized rendering function depending on processor feat
     _color = newColor;
 }
 
-- (float*) surface
+- (CGFloat*) surface
 {
     return _surface;
 }
 
-- (void) setSurface: (const float*) newsurface
+- (void) setSurface: (const CGFloat*) newsurface
 {
     memcpy( _surface, newsurface, sizeof(_surface) );
 }
@@ -130,13 +137,13 @@ Unoptimized:
 
     // Optimized (gains 15 ms of 1030):
 
-    float h4= 4 * heightFactor;
+    CGFloat h4= 4 * heightFactor;
 
-    float wf= h4 / NSWidth(_rect);
+    CGFloat wf= h4 / NSWidth(_rect);
     _surface[2]+= wf * ( NSMaxX(_rect) + NSMinX(_rect) );
     _surface[0]-= wf;
 
-    float hf= h4 / NSHeight(_rect);
+    CGFloat hf= h4 / NSHeight(_rect);
     _surface[3]+= hf * ( NSMaxY(_rect) + NSMinY(_rect) );
     _surface[1]-= hf;
 }
@@ -151,7 +158,7 @@ Unoptimized:
 - (void) renderCushionInBitmapGeneric: (NSBitmapImageRep*) bitmap
 {
     NSRect rect = [self rect];
-    const float *surface = [self surface];
+    const CGFloat *surface = [self surface];
     NSColor *baseColor = [self color];
 
     //we're expecting a bitmap which is at least as big as our rectangle,
@@ -177,12 +184,12 @@ Unoptimized:
     const double Ly = lx / len;
     const double Lz = lz / len;
 
-    const float colR = [baseColor redComponent];
-    const float colG = [baseColor greenComponent];
-    const float colB = [baseColor blueComponent];
+    const CGFloat colR = [baseColor redComponent];
+    const CGFloat colG = [baseColor greenComponent];
+    const CGFloat colB = [baseColor blueComponent];
 
     unsigned char *pixels = [bitmap bitmapData];
-    int bytesPerRow = [bitmap bytesPerRow];
+    NSInteger bytesPerRow = [bitmap bytesPerRow];
 	
     int ix, iy;
 	int yStart = NSMinY(rect);
@@ -208,9 +215,9 @@ Unoptimized:
 
             brightness *= 2.5 / BASE_BRIGHTNESS;
 
-            float red = colR * brightness;
-            float green = colG * brightness;
-            float blue = colB * brightness;
+            CGFloat red = colR * brightness;
+            CGFloat green = colG * brightness;
+            CGFloat blue = colB * brightness;
 
             [TMVCushionRenderer normalizeColorRed: &red green: &green blue: &blue];
 
@@ -234,7 +241,9 @@ Unoptimized:
     }
 }
 
+#ifdef __ppc__
 //PowerPC optimzed version (603+)
+//double precision (double)
 - (void) renderCushionInBitmapPPC603: (NSBitmapImageRep*) bitmap
 {
 	NSRect rect = [self rect];
@@ -315,9 +324,9 @@ Unoptimized:
 			
 			brightness *= 2.5 / BASE_BRIGHTNESS;
 
-            float red = colR * brightness;
-            float green = colG * brightness;
-            float blue = colB * brightness;
+            CGFloat red = colR * brightness;
+            CGFloat green = colG * brightness;
+            CGFloat blue = colB * brightness;
 			
             [TMVCushionRenderer normalizeColorRed: &red green: &green blue: &blue];
 			
@@ -329,8 +338,12 @@ Unoptimized:
         }
     }
 }
+#endif //__ppc__
 
-- (void) renderCushionInBitmapPPC603Single: (NSBitmapImageRep*) bitmap; //PowerPC optimzed version (603+)
+#ifdef __ppc__
+//PowerPC optimzed version (603+)
+//single precision (float)
+- (void) renderCushionInBitmapPPC603Single: (NSBitmapImageRep*) bitmap;
 {
 	NSRect rect = [self rect];
 	
@@ -407,9 +420,9 @@ Unoptimized:
 			
 			brightness *= 2.5f / BASE_BRIGHTNESS;
 			
-            float red = colR * brightness;
-            float green = colG * brightness;
-            float blue = colB * brightness;
+            CGFloat red = colR * brightness;
+            CGFloat green = colG * brightness;
+            CGFloat blue = colB * brightness;
 			
             [TMVCushionRenderer normalizeColorRed: &red green: &green blue: &blue];
 			
@@ -421,8 +434,9 @@ Unoptimized:
         }
     }
 }
+#endif //__ppc__
 
-+ (void) normalizeColorRed: (float*) red green: (float*) green blue: (float*) blue
++ (void) normalizeColorRed: (CGFloat*) red green: (CGFloat*) green blue: (CGFloat*) blue
 {
 	//This eats 50% of function time
     //NSAssert(*red + *green + *blue <= 3.0 * MAX_RGB_VALUE, @"color error");
@@ -447,14 +461,14 @@ Unoptimized:
 	if ( ![[color colorSpaceName] isEqualToString: NSCalibratedRGBColorSpace] )
 		color = [color colorUsingColorSpaceName: NSCalibratedRGBColorSpace];
 	
-    float red = [color redComponent];
-    float green = [color greenComponent];
-    float blue = [color blueComponent];
+    CGFloat red = [color redComponent];
+    CGFloat green = [color greenComponent];
+    CGFloat blue = [color blueComponent];
 
-    float alpha = [color alphaComponent];
+    CGFloat alpha = [color alphaComponent];
 
-	float componentSum = red + green + blue;
-    float f= componentSum != 0 ? (BASE_BRIGHTNESS / componentSum) : 1;
+	CGFloat componentSum = red + green + blue;
+    CGFloat f= (componentSum != 0.0) ? (BASE_BRIGHTNESS / componentSum) : 1;
     red *= f;
     green *= f;
     blue *= f;
@@ -471,23 +485,23 @@ Unoptimized:
 
 @implementation TMVCushionRenderer(Private)
 
-+ (void) distributeRGB1: (float*) first toRGB2: (float*) second toRGB3: (float*) third
++ (void) distributeRGB1: (CGFloat*) first toRGB2: (CGFloat*) second toRGB3: (CGFloat*) third
 {
-    float h = (*first - MAX_RGB_VALUE) / 2.0f;
+    CGFloat h = (*first - MAX_RGB_VALUE) / 2.0f;
     *first = MAX_RGB_VALUE;
     *second += h;
     *third += h;
 
     if (*second > MAX_RGB_VALUE)
     {
-        float h = *second - MAX_RGB_VALUE;
+        h = *second - MAX_RGB_VALUE;
         *second = MAX_RGB_VALUE;
         *third+= h;
         NSAssert(*third <= MAX_RGB_VALUE, @"color error" );
     }
     else if (*third > MAX_RGB_VALUE)
     {
-        float h = *third - MAX_RGB_VALUE;
+        h = *third - MAX_RGB_VALUE;
         *third = MAX_RGB_VALUE;
         *second += h;
         NSAssert(*second <= MAX_RGB_VALUE, @"color error");

@@ -45,8 +45,8 @@
 	
 	_rect = zoomIn ? endRect: startRect;
 	
-	float maxPixelToZoom = fmaxf( fabsf( NSWidth(endRect) - NSWidth(startRect) ),
-								  fabsf( NSHeight(endRect) - NSHeight(startRect) ) );
+	float maxPixelToZoom = fmaxf( fabs( NSWidth(endRect) - NSWidth(startRect) ),
+								  fabs( NSHeight(endRect) - NSHeight(startRect) ) );
 	
 	float zoomStepCount = maxPixelToZoom / (shiftKeyPressed ? 10.0 : 40.0);
 	
@@ -143,7 +143,9 @@
 	[_image drawInRect: _rect
 			  fromRect: NSMakeRect( 0, 0, imageSize.width, imageSize.height )
 			 operation: NSCompositeCopy
-			  fraction: 1];
+              fraction: 1/*requestedAlpha*/
+        respectFlipped: YES
+                 hints: nil];
 	
 	[[NSGraphicsContext currentContext] setImageInterpolation: currentInterpolation];
 }

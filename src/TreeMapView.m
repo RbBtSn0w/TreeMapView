@@ -8,6 +8,7 @@
 
 #import "TreeMapView.h"
 #import "NSBitmapImageRep-CreationExtensions.h"
+#import "NSView-BackingCoordsHelpers.h"
 #import "ZoomInfo.h"
 
 NSString *TreeMapViewItemTouchedNotification = @"TreeMapViewItemTouched";
@@ -65,8 +66,12 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 
 - (void) awakeFromNib
 {
-    [[self window] setAcceptsMouseMovedEvents: YES];
-
+    NSTrackingArea *trackingArea = [[[NSTrackingArea alloc] initWithRect: [self bounds]
+                                                                 options: NSTrackingMouseMoved | NSTrackingInVisibleRect | NSTrackingActiveInActiveApp
+                                                                   owner: self
+                                                                userInfo: nil] autorelease];
+    [self addTrackingArea:trackingArea];
+    
     //we will defer the creation fo the renderers till "reloadData" is called explicitly
     //_rootItemRenderer = [[TMVItem alloc] initWithDataSource: dataSource delegate: delegate renderedItem: nil treeMapView: self];
 }
@@ -137,67 +142,90 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
     
     if ( ![ dataSource respondsToSelector:@selector(treeMapView: weightByItem:) ] )
         RAISE_EXCEPTION( @"(unsigned long long) treeMapView: (TreeMapView*) view weightByItem: (id) item" );
-        
+    
 #undef RAISE_EXCEPTION
 }
 
 - (void) drawRect: (NSRect) rect
 {
-	//first, draw the focus rect, if we are first responder
-	if ( [[self window] isKeyWindow]
-		 && [[self window] firstResponder] == self )
-	{
-		[NSGraphicsContext saveGraphicsState];
-		
-		NSSetFocusRingStyle( NSFocusRingOnly );
-		
-		[[NSColor keyboardFocusIndicatorColor] set];		
-		NSFrameRectWithWidth( [self visibleRect], 1 ); 
-		
-		[NSGraphicsContext restoreGraphicsState];
-	}
-	
-	//If the window is being resized, we don't draw the tree map (too slow).
-	//same for the case that we don't have anything to draw
-    if ( [self inLiveResize] || _rootItemRenderer == nil || [_rootItemRenderer childCount] == 0 )
-    {
-        //NSDrawWindowBackground( rect );
-        NSEraseRect( rect );
+    // anything to draw?
+    if ( _rootItemRenderer == nil || [_rootItemRenderer childCount] == 0 )
         return;
+    
+	//If the window is being resized, we just scale the image we have
+    //and do not rebuild the tree map according to the new dimensions (would be too slow).
+    if ( [self inLiveResize] )
+    {
+        if ( _cachedContent != nil )
+        {
+            // create temporay NSImage instance with the BitmapRep, so we can use NSImage's drawing function
+            NSImage *image = [_cachedContent suitableImageForView: self];
+            NSSize imageSize = [image size];
+            
+            // draw image slightly dimmed
+            [image drawInRect: [self bounds]
+                     fromRect: NSMakeRect( 0, 0, imageSize.width, imageSize.height )
+                    operation: NSCompositeCopy
+                     fraction: 0.6/*requestedAlpha*/
+               respectFlipped: YES
+                        hints: nil];
+        }
+        else
+            NSDrawWindowBackground( rect );
     }
-	
-	if ( _zoomer != nil )
+    // are we currently zooming in or out?
+	else if ( _zoomer != nil )
 	{
 		[_zoomer drawImage];
-		return;
 	}
-
-    //if our size has changed, re-layout items
-    NSRect viewBounds = [self bounds];
-    BOOL relayout = !NSEqualRects( viewBounds, [_rootItemRenderer rect] );
-    if ( relayout )
+    // "regular" drawing
+    else
     {
-        [_rootItemRenderer calcLayout: viewBounds];
- 
-        [self deallocContentCache];
+        //if our size has changed, re-layout items
+        NSRect viewBounds = [self bounds];
+        // the tree map item renderers work in the coordinate system of the window's backing store
+        viewBounds = [self convertRectToBackingRespectingFlipped: viewBounds];
+        
+        BOOL updateLayout = !NSEqualRects( viewBounds, [_rootItemRenderer rect] );
+        if ( updateLayout )
+        {
+            [_rootItemRenderer calcLayout: viewBounds];
+     
+            [self deallocContentCache];
+        }
+        
+        // this does nothing if the cached image already exists
+        [self drawInCache];
+
+        // create temporay NSImage instance with the BitmapRep, so we can use NSImage's drawing function
+        NSImage *image = [_cachedContent suitableImageForView: self];
+        
+        [image drawInRect: rect
+                 fromRect: rect
+                operation: NSCompositeCopy
+                 fraction: 1/*requestedAlpha*/
+           respectFlipped: YES
+                    hints: nil];
+
+        if ( _selectedRenderer != nil )
+        {
+            [_selectedRenderer drawHighlightFrame];
+        }
     }
-	
-    [self drawInCache];
+}
 
-    NSSize imageSize = NSMakeSize( NSWidth(viewBounds), NSHeight(viewBounds) );
+// To opt-in for the OS X 10.7 focus ring drawing model, a view simply overrides the -drawFocusRingMask method
+// to draw the shape whose outline should serve as the template for the focus ring ...
+- (void)drawFocusRingMask
+{
+    NSRectFill([self bounds]);
+}
 
-    NSImage *image = [_cachedContent suitableImageForView: self];
-
-    [image drawAtPoint: NSMakePoint( 0, 0 )
-              fromRect: viewBounds
-             operation: NSCompositeCopy
-              fraction: 1];
-
-    if ( _selectedRenderer != nil )
-    {
-        [_selectedRenderer drawHighlightFrame];
-    }
-	
+// ... and -focusRingMaskBounds to return the bounding box of the entire element (expressed in the view's interior bounds coordinate space).
+// For a view with a single item, that can be the entire view bounds
+- (NSRect)focusRingMaskBounds
+{
+    return [self bounds];
 }
 	
 - (void) mouseDown: (NSEvent*) theEvent
@@ -205,6 +233,10 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
     NSPoint point = [theEvent locationInWindow];
     point = [self convertPoint: point fromView: nil];
     point.y--;
+    
+    // the tree map item renderers work in the coordinate system of the window's backing store
+    // so convert the point
+    point = [self convertPointToBackingRespectingFlipped: point];
 
     //find the hitted item
     TMVItem* renderer = [_rootItemRenderer hitTest: point];
@@ -233,18 +265,24 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 
 - (void) mouseMoved: (NSEvent *)theEvent
 {
-    [super mouseMoved: theEvent];
+	//if we are not first responder, [super mouseMoved: theEvent] will call [[self window] mouseMoved: theEvent]
+	if ( [[self window] firstResponder] == self )
+		[super mouseMoved: theEvent];
     
     NSPoint point = [theEvent locationInWindow];
     point = [self convertPoint: point fromView: nil];
     point.y--;
+    
+    // the tree map item renderers work in the coordinate system of the window's backing store,
+    // so convert the point coordinates
+    NSPoint pointPixel = [self convertPointToBackingRespectingFlipped:point];
 
     //first test if the mouse is still in the same item
-    if ( _touchedRenderer != nil && [_touchedRenderer hitTest: point] != nil )
+    if ( _touchedRenderer != nil && [_touchedRenderer hitTest: pointPixel] != nil )
         return;
 
     //the mouse is moved to a new item, so look for the new one
-     TMVItem* renderer = [_rootItemRenderer hitTest: point];
+    TMVItem* renderer = [_rootItemRenderer hitTest: pointPixel];
 
     if ( renderer == _touchedRenderer )
     {
@@ -283,6 +321,10 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 {
     if ( !viewCoords)
         point = [self convertPoint: point fromView: nil];
+
+    // the tree map item renderers work in the coordinate system of the window's backing store,
+    // so convert the point coordinates
+    point = [self convertPointToBackingRespectingFlipped:point];
 
     return [_rootItemRenderer hitTest: point];
 }
@@ -327,8 +369,10 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 {
 	NSParameterAssert( cellId != nil );
 	
-	if ( cellId != nil )
-		return [cellId rect];
+    if ( cellId != nil )
+        // the tree map item renderers work in the coordinate system of the window's backing store,
+        // so convert the rect coordinates
+        return [self convertRectFromBackingRespectingFlipped:[cellId rect]];
 	else
 		return NSZeroRect;
 }
@@ -342,21 +386,36 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 	TMVItem *renderer = [self findTMVItemByPathToDataItem: path];
 	
 	if ( renderer != nil )
-		return [renderer rect];
+        // the tree map item renderers work in the coordinate system of the window's backing store,
+        // so convert the rect coordinates
+        return [self convertRectFromBackingRespectingFlipped:[renderer rect]];
 	else
 		return NSZeroRect;
 }
 
-- (void) reloadData
+- (void) invalidateCanvasCache //just delete the cached view content
 {
     [self deallocContentCache];
+}
 
-    [_rootItemRenderer release];
+- (void) reloadData
+{
+    NSAssert(![self zoomingInProgress], @"cannot reload tree map while zooming is in progress");
+    
+    [self deallocContentCache];
 
     _selectedRenderer = nil;
     _touchedRenderer = nil;
 
-    _rootItemRenderer = [[TMVItem alloc] initWithDataSource: dataSource delegate: delegate renderedItem: nil treeMapView: self];
+	if ( _rootItemRenderer == nil )
+	{
+		 _rootItemRenderer = [[TMVItem alloc] initWithDataSource: dataSource
+														delegate: delegate
+													renderedItem: nil
+													 treeMapView: self];
+	}
+	else
+		[_rootItemRenderer refreshWithItem: nil];
 
     [self removeAllToolTips];
     [self addToolTipRect: [self bounds] owner: self userData: nil];
@@ -366,11 +425,16 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 
 - (void) reloadAndPerformZoomIntoItem: (NSArray*) path
 {
+    NSAssert(![self zoomingInProgress], @"cannot reload tree map while zooming is in progress");
+    
     //path must at least contain one item (the root item)
 	NSAssert( [path count] > 0, @"path must contain at least 1 component" );
 	
 	NSRect viewBounds = [self bounds];
-	
+    // the tree map item renderers work in the coordinate system of the window's backing store,
+    // so convert the rect coordinates
+    viewBounds = [self convertRectToBackingRespectingFlipped: viewBounds];
+
 	//just reload if item to zoom in is too small
 	TMVItem *renderer = [self findTMVItemByPathToDataItem: path];
 	if ( renderer == nil
@@ -386,17 +450,15 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 	NSBitmapImageRep *oldImageRep = nil;
 	if ( _cachedContent == nil )
 	{
-		//creates a Bitmap with 24 bit color depth and no alpha component							 
-		oldImageRep = [[ NSBitmapImageRep alloc]
-						initRGBBitmapWithWidth: NSWidth(viewBounds) height: NSHeight(viewBounds)];
+        oldImageRep = [NSBitmapImageRep imageRepCompatibleWithView: self];
 		
 		[_rootItemRenderer calcLayout: viewBounds];
 		[_rootItemRenderer drawCushionInBitmap: oldImageRep];
 	}
 	else
-		oldImageRep = [_cachedContent retain];
+        oldImageRep = [[_cachedContent retain] autorelease];
 	
-	[oldImageRep autorelease];
+	NSRect zoomStartRect = [renderer rect]; 
 	
 	//before we animate the zooming, make sure the new content is loaded and rendered,
 	//so the new content can be drawn immediately after the zooming has finished
@@ -411,11 +473,13 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 	_zoomer = [[ZoomInfo alloc] initWithImage: [oldImageRep suitableImageForView: self]
 									 delegate: self
 									 selector: @selector(performZoom:)];
-	[_zoomer calculateZoomFromRect: [renderer rect] toRect: viewBounds];
+	[_zoomer calculateZoomFromRect: zoomStartRect toRect: viewBounds];
 }
 
 - (void) reloadAndPerformZoomOutofItem: (NSArray*) path
 {
+    NSAssert(![self zoomingInProgress], @"cannot reload tree map while zooming is in progress");
+    
     //path must at least contain one item (the root item)
 	NSAssert( [path count] > 0, @"path must contain at least 1 component" );
 	
@@ -434,7 +498,7 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 		 || NSWidth([renderer rect]) <= 4 || NSHeight([renderer rect]) <= 4 )
 	{
 		if ( renderer == nil )
-			NSLog( @"item to zoom in wasn't found" );
+			NSLog( @"item to zoom out wasn't found" );
 		return;
 	}
 	
@@ -447,9 +511,17 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 	[_zoomer calculateZoomFromRect: viewBounds toRect: [renderer rect]];
 }
 
+- (BOOL) zoomingInProgress
+{
+    return _zoomer != nil;
+}
+
 - (NSString *) view: (NSView *) view stringForToolTip: (NSToolTipTag) tag point: (NSPoint) point userData: (void *) userData
 {
-    if ( delegate != nil && [delegate respondsToSelector: @selector(treeMapView: getToolTipByItem:)] )
+	//tooltips don't work satisfyingly, so disable them
+	return nil;
+/*
+	if ( delegate != nil && [delegate respondsToSelector: @selector(treeMapView: getToolTipByItem:)] )
     {
         TMVItem *childRenderer = [self cellIdByPoint: point inViewCoords: YES];
 
@@ -457,8 +529,8 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
     }
     else
         return @"";
+ */
 }
-
 - (void) viewDidEndLiveResize
 {
     [self addToolTipRect: [self bounds] owner: self userData: nil];
@@ -495,9 +567,9 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 {
 	if ( ![super resignFirstResponder] )
 		return NO;
-	
+
 	[self setKeyboardFocusRingNeedsDisplayInRect: [self visibleRect]];
-	
+
 	return YES;
 }
 
@@ -506,9 +578,9 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 {
 	if ( ![super resignFirstResponder] )
 		return NO;
-	
+
 	[self setKeyboardFocusRingNeedsDisplayInRect: [self visibleRect]];
-	
+
 	return YES;
 }
 
@@ -534,6 +606,13 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 - (BOOL) isOpaque
 {
     return YES;
+}
+
+// Is invoked when the view’s backing properties change. The default implementation does nothing.
+- (void) viewDidChangeBackingProperties
+{
+    // just invalidate; our drawing function will detect the change and will reallocate the cache bitmap
+    [self setNeedsDisplay: YES];
 }
 
 - (void) benchmarkLayoutCalculationWithImageSize: (NSSize) size count: (unsigned) count
@@ -594,11 +673,7 @@ NSString *TMVTouchedItem = @"TreeMapViewTouchedItem"; //key for touched item in 
 {
     [_cachedContent release];
 
-    NSRect viewBounds = [self bounds];
-
-	//creates a Bitmap with 24 bit color depth and no alpha component							 
-    _cachedContent = [[ NSBitmapImageRep alloc]
-						initRGBBitmapWithWidth: NSWidth(viewBounds) height: NSHeight(viewBounds)];
+    _cachedContent = [[NSBitmapImageRep imageRepCompatibleWithView: self] retain];
 }
 
 - (void) deallocContentCache

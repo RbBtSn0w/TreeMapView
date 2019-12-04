@@ -8,6 +8,7 @@
 
 #import "TMVItem.h"
 #import "TreeMapView.h"
+#import "NSView-BackingCoordsHelpers.h"
 
 #define  CUSHION_SCALE_FACTOR	 0.9f
 
@@ -30,13 +31,12 @@ static NSMutableDictionary *_cushionTextAttributes;
                 childsPerRow: (NSMutableArray*) childsPerRow
                  childWidths: (NSMutableArray*) childWidths
                 rowsAreHoriz: (BOOL*) horizontal;
-- (double) calculateRow: (unsigned) startChildIndex
+- (double) calculateRow: (NSUInteger) startChildIndex
                rowWidth: (double) rowWidth
-            childsUsed : (unsigned*) childsUsed
+            childsUsed : (NSUInteger*) childsUsed
             childWidths: (NSMutableArray*) childWidths;
 
 - (void) createChildRenderers;
-
 @end
 
 //============================ implementation TMVItem =============================================
@@ -86,6 +86,22 @@ static NSMutableDictionary *_cushionTextAttributes;
     [super dealloc];
 }
 
+- (void) refreshWithItem: (id) item
+{
+    _item = item;
+	_rect = NSZeroRect;
+	
+	[_cushionRenderer setRect: NSZeroRect];
+	
+    if ( ![self isLeaf] )
+		[self createChildRenderers];
+	else
+	{
+		[_childRenderers release];
+		_childRenderers = nil;
+	}
+}
+
 - (void) setCushionColor: (NSColor*) color
 {
     [_cushionRenderer setColor: color];
@@ -96,16 +112,23 @@ static NSMutableDictionary *_cushionTextAttributes;
     if ( NSEqualRects( _rect, rect ) )
 		return;
 
-    NSAssert( NSWidth(_rect) == roundf( NSWidth(_rect) ), @"rect width is not an integral value");
-    NSAssert( NSHeight(_rect) == roundf( NSHeight(_rect) ), @"rect height is not an integral value");
+    //NSAssert( NSWidth(_rect) == roundf( NSWidth(_rect) ), @"rect width is not an integral value");
+    //NSAssert( NSHeight(_rect) == roundf( NSHeight(_rect) ), @"rect height is not an integral value");
+    NSAssert( ( rect.origin.x - (CGFloat)(int)rect.origin.x ) == 0.0 , @"rect.origin.x is not an integral value");
+    NSAssert( ( rect.origin.y - (CGFloat)(int)rect.origin.y ) == 0.0 , @"rect.origin.y is not an integral value");
+    NSAssert( ( rect.size.width - (CGFloat)(int)rect.size.width ) == 0.0 , @"rect.size.width is not an integral value");
+    NSAssert( ( rect.size.height - (CGFloat)(int)rect.size.height ) == 0.0 , @"height is not an integral value");
 
     _rect = rect;
     [_cushionRenderer setRect: rect];
     
     //if the rect is too small, we do nothing
-    if ( NSHeight( _rect) < 1 || NSWidth( _rect ) < 1 )
-        return;
-
+    {
+        NSRect rectPoints = [_view convertRectFromBackingRespectingFlipped: _rect];
+        if ( NSHeight( rectPoints ) < 1 || NSWidth( rectPoints ) < 1 )
+            return;
+    }
+    
     if ( ![self isLeaf] )
         [self layoutChilds];
 }
@@ -114,16 +137,18 @@ static NSMutableDictionary *_cushionTextAttributes;
 {
     if ( [self isLeaf] )
     {
+        NSRect rectPoints = [_view convertRectFromBackingRespectingFlipped:_rect];
+        
         [_leafGridColor set];
 
-        NSFrameRectWithWidthUsingOperation(_rect, 1, NSCompositeCopy );
+        NSFrameRectWithWidthUsingOperation(rectPoints, 1, NSCompositeCopy );
 
 /*        if ( NSWidth(_rect) > 60 && NSHeight(_rect) > 20 )
         {
             //            [_gridTextAttributes setObject: [NSFont fontWithName:@"Times" size: 24]
             //                        forKey:NSFontAttributeName];
             [_gridTextAttributes setObject: _leafGridColor forKey:NSForegroundColorAttributeName];
-            [[_item displayName] drawInRect: _rect withAttributes: _gridTextAttributes];
+            [[_item displayName] drawInRect: rectPoints withAttributes: _gridTextAttributes];
         }
         */
     }
@@ -140,8 +165,10 @@ static NSMutableDictionary *_cushionTextAttributes;
 
 - (void) drawHighlightFrame
 {
+    NSRect rectPoints = [_view convertRectFromBackingRespectingFlipped: _rect];
+    
     //if the rect is too small, we do nothing
-    if ( NSHeight( _rect) < 1 || NSWidth( _rect ) < 1 )
+    if ( NSHeight( rectPoints) < 1 || NSWidth( rectPoints ) < 1 )
         return;
     
     [_highlightGridColor set];
@@ -149,7 +176,7 @@ static NSMutableDictionary *_cushionTextAttributes;
 	float oldLineWidth = [NSBezierPath defaultLineWidth];
 	[NSBezierPath setDefaultLineWidth: 2];
 	
-    [NSBezierPath strokeRect: _rect];
+    [NSBezierPath strokeRect: rectPoints];
 	
 	[NSBezierPath setDefaultLineWidth: oldLineWidth];
 }
@@ -186,12 +213,12 @@ static NSMutableDictionary *_cushionTextAttributes;
     return [_childRenderers objectEnumerator];
 }
 
-- (TMVItem*) childAtIndex: (unsigned) index
+- (TMVItem*) childAtIndex: (unsigned) childIndex
 {
-    return [_childRenderers objectAtIndex: index];
+    return [_childRenderers objectAtIndex: childIndex];
 }
 
-- (unsigned) childCount
+- (NSUInteger) childCount
 {
     return [_childRenderers count];
 }
@@ -228,9 +255,12 @@ static NSMutableDictionary *_cushionTextAttributes;
 - (void) drawCushionInBitmap: (NSBitmapImageRep*) bitmap parentCushion: (TMVCushionRenderer*) parentCushion cushionHeightFactor: (float) heightFactor
 {
     //if the rect is too small, we do nothing
-    if ( NSHeight( _rect) < 1 || NSWidth( _rect ) < 1 )
-        return;
-
+    {
+        NSRect rectPoints = [_view convertRectFromBackingRespectingFlipped: _rect];
+        if ( NSHeight( rectPoints) < 1 || NSWidth( rectPoints ) < 1 )
+            return;
+    }
+    
     if ( parentCushion != NULL )
     {
         [_cushionRenderer setSurface: [parentCushion surface]];
@@ -300,7 +330,6 @@ static NSMutableDictionary *_cushionTextAttributes;
 
     for ( row = 0; row < [rows count]; row++ )
     {
-        unsigned column = 0;
         int bottom = top + roundf( [[rows objectAtIndex: row] doubleValue] * parentHeight );
         //if this is the last row, make sure it's bottom is the same as our bottom (get rid of rounding errors)
         if ( bottom > parentBottom || row == [rows count] - 1 )
@@ -308,7 +337,7 @@ static NSMutableDictionary *_cushionTextAttributes;
 
         int left = parentLeft;
 
-        for ( column = 0; column < [[childsPerRow objectAtIndex: row] unsignedIntValue]; column++, childIndex++)
+        for ( unsigned column = 0; column < [[childsPerRow objectAtIndex: row] unsignedIntValue]; column++, childIndex++)
         {
             int right = left + roundf( [[childWidths objectAtIndex: childIndex] doubleValue] * parentWidth );
             //if this is last child in the current row, make sure it's rect ends with our rect
@@ -353,8 +382,8 @@ static NSMutableDictionary *_cushionTextAttributes;
                  childWidths: (NSMutableArray*) childWidths
                 rowsAreHoriz: (BOOL*) horizontal
 {
-    unsigned childCount = [_childRenderers count];
-    unsigned i;
+    NSUInteger childCount = [_childRenderers count];
+    NSUInteger i;
 	NSNumber *num = nil;
 	
     if ( [self weight] == 0 )
@@ -363,7 +392,7 @@ static NSMutableDictionary *_cushionTextAttributes;
         [rows addObject: num/*[NSNumber numberWithUnsignedInt: 1]*/];
 		[num release];
 		
-		num = [[NSNumber alloc] initWithUnsignedInt: childCount];
+		num = [[NSNumber alloc] initWithUnsignedInteger: childCount];
         [childsPerRow addObject: num/*[NSNumber numberWithUnsignedInt: childCount]*/];
 		[num release];
 
@@ -391,7 +420,7 @@ static NSMutableDictionary *_cushionTextAttributes;
 
         for ( i = 0; i < childCount; )
         {
-            unsigned childsUsed = 0;
+            NSUInteger childsUsed = 0;
             double rowHeight = [self calculateRow: i
                                          rowWidth: width
                                        childsUsed: &childsUsed
@@ -401,7 +430,7 @@ static NSMutableDictionary *_cushionTextAttributes;
             [rows addObject: num/*[NSNumber numberWithDouble: rowHeight]*/];
 			[num release];
 			
-			num = [[NSNumber alloc] initWithUnsignedInt: childsUsed];
+			num = [[NSNumber alloc] initWithUnsignedInteger: childsUsed];
             [childsPerRow addObject: num/*[NSNumber numberWithUnsignedInt: childsUsed]*/];
 			[num release];
 
@@ -410,17 +439,17 @@ static NSMutableDictionary *_cushionTextAttributes;
     }
 }
 
-- (double) calculateRow: (unsigned) startChildIndex
+- (double) calculateRow: (NSUInteger) startChildIndex
                rowWidth: (double) rowWidth
-            childsUsed : (unsigned int*) childsUsed
+            childsUsed : (NSUInteger*) childsUsed
             childWidths: (NSMutableArray*) childWidths
 {
     static const double minProportion = 0.4;
     const double mySize= [self weight];
-    unsigned i;
+    NSUInteger i;
     double sizeUsed= 0;
     double rowHeight= 0;
-    unsigned childCount = [_childRenderers count];
+    NSUInteger childCount = [_childRenderers count];
 
     *childsUsed = 0;
 
@@ -489,22 +518,42 @@ static NSMutableDictionary *_cushionTextAttributes;
 - (void) createChildRenderers
 {
     unsigned childCount = [_dataSource treeMapView: _view numberOfChildrenOfItem: _item];
-    unsigned i;
-
-	[_childRenderers release];
-    _childRenderers = [[NSMutableArray alloc] initWithCapacity: childCount];
-
+	
+	if ( _childRenderers == nil )
+		_childRenderers = [[NSMutableArray alloc] initWithCapacity: childCount];
+	
+	NSUInteger existingRendererCount = [_childRenderers count];
+	
+	//delete supernumerary renderers
+	if ( existingRendererCount > childCount )
+	{
+		[_childRenderers removeObjectsInRange: NSMakeRange( childCount, existingRendererCount - childCount)];
+		existingRendererCount = childCount;
+	}
+	
+	//init renderers
+    NSUInteger i;
     for ( i = 0; i < childCount; i++ )
     {
         id childItem = [_dataSource treeMapView: _view child: i ofItem: _item];
         NSAssert( childItem != nil, @"data source returned nil as child item" );
-
-        TMVItem *childRenderer = [[TMVItem alloc]
-            initWithDataSource: _dataSource delegate: _delegate renderedItem: childItem treeMapView: _view];
-
-        [_childRenderers addObject: childRenderer];
-
-        [childRenderer release];
+		
+		//recycle existing renderer
+		if ( i < existingRendererCount )
+		{
+			[[_childRenderers objectAtIndex: i] refreshWithItem: childItem];
+		}
+		else
+		{
+			TMVItem *childRenderer = [[TMVItem alloc] initWithDataSource: _dataSource
+																delegate: _delegate
+															renderedItem: childItem
+															 treeMapView: _view];
+			
+			[_childRenderers addObject: childRenderer];
+			
+			[childRenderer release];
+		}
     }
 }
 
