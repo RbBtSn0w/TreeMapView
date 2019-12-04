@@ -18,7 +18,6 @@ NS_ASSUME_NONNULL_BEGIN
 	float _leftStep, _topStep, _rightStep, _bottomStep;
 	id _delegate;
 	SEL _delegateSelector;
-	NSTimer *_timer;
 }
 
 - (id) initWithImage: (NSImage*) image

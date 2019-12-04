@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		8DC2EF530486A6940098B216 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C1666FE841158C02AAC07 /* InfoPlist.strings */; };
 		8DC2EF570486A6940098B216 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7B1FEA5585E11CA2CBB /* Cocoa.framework */; };
+		B14591692397CDE600A172FF /* TMVWeakProxy.h in Headers */ = {isa = PBXBuildFile; fileRef = B14591672397CDE600A172FF /* TMVWeakProxy.h */; };
+		B145916A2397CDE600A172FF /* TMVWeakProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = B14591682397CDE600A172FF /* TMVWeakProxy.m */; settings = {COMPILER_FLAGS = "-fobjc-arc"; }; };
 		FC08297422136FC400728CFE /* NSView-BackingCoordsHelpers.h in Headers */ = {isa = PBXBuildFile; fileRef = FC08297222136FC400728CFE /* NSView-BackingCoordsHelpers.h */; };
 		FC08297522136FC400728CFE /* NSView-BackingCoordsHelpers.m in Sources */ = {isa = PBXBuildFile; fileRef = FC08297322136FC400728CFE /* NSView-BackingCoordsHelpers.m */; };
 		FCA4C9A8075CB9E60064125F /* ZoomInfo.h in Headers */ = {isa = PBXBuildFile; fileRef = FCA4C9A6075CB9E60064125F /* ZoomInfo.h */; };
@@ -32,6 +34,8 @@
 		8DC2EF5A0486A6940098B216 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8DC2EF5B0486A6940098B216 /* TreeMapView.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TreeMapView.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B14591662397B41900A172FF /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		B14591672397CDE600A172FF /* TMVWeakProxy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TMVWeakProxy.h; sourceTree = "<group>"; };
+		B14591682397CDE600A172FF /* TMVWeakProxy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TMVWeakProxy.m; sourceTree = "<group>"; };
 		FC08297222136FC400728CFE /* NSView-BackingCoordsHelpers.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSView-BackingCoordsHelpers.h"; sourceTree = "<group>"; };
 		FC08297322136FC400728CFE /* NSView-BackingCoordsHelpers.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "NSView-BackingCoordsHelpers.m"; sourceTree = "<group>"; };
 		FC2D7D7F21FE4ABC004D0614 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -116,6 +120,8 @@
 				FCE43ABA070B54E200E18050 /* TMVItem.m */,
 				FCE43ABB070B54E200E18050 /* TreeMapView.h */,
 				FCE43ABC070B54E200E18050 /* TreeMapView.m */,
+				B14591672397CDE600A172FF /* TMVWeakProxy.h */,
+				B14591682397CDE600A172FF /* TMVWeakProxy.m */,
 			);
 			name = Classes;
 			sourceTree = "<group>";
@@ -164,6 +170,7 @@
 				FCE43ABF070B54E200E18050 /* TMVItem.h in Headers */,
 				FCE43AC1070B54E200E18050 /* TreeMapView.h in Headers */,
 				FCB5721E0726D85100AE06A1 /* NSBitmapImageRep-CreationExtensions.h in Headers */,
+				B14591692397CDE600A172FF /* TMVWeakProxy.h in Headers */,
 				FC08297422136FC400728CFE /* NSView-BackingCoordsHelpers.h in Headers */,
 				FCA4C9A8075CB9E60064125F /* ZoomInfo.h in Headers */,
 			);
@@ -240,6 +247,7 @@
 				FC08297522136FC400728CFE /* NSView-BackingCoordsHelpers.m in Sources */,
 				FCE43AC0070B54E200E18050 /* TMVItem.m in Sources */,
 				FCE43AC2070B54E200E18050 /* TreeMapView.m in Sources */,
+				B145916A2397CDE600A172FF /* TMVWeakProxy.m in Sources */,
 				FCB5721F0726D85100AE06A1 /* NSBitmapImageRep-CreationExtensions.m in Sources */,
 				FCA4C9A9075CB9E60064125F /* ZoomInfo.m in Sources */,
 			);

@@ -7,9 +7,17 @@
 //
 
 #import "ZoomInfo.h"
+#import "TMVWeakProxy.h"
 
 @interface NSApplication(Omni)
 - (BOOL) checkForModifierFlags:(unsigned int)flags;
+@end
+
+@interface ZoomInfo ()
+
+@property (nonatomic, retain) NSTimer *timer;
+@property (nonatomic, retain) TMVWeakProxy<ZoomInfo*> *weakProxy;
+
 @end
 
 @implementation ZoomInfo
@@ -68,24 +76,29 @@
 	
 	_zoomStepsLeft = roundf( zoomStepCount );
 	
-	_timer = [NSTimer timerWithTimeInterval: 0.03
-									 target: self
-								   selector: @selector(onTimer:)
-								   userInfo: nil
-									repeats: YES];
+    self.weakProxy = [TMVWeakProxy proxyWithTarget:self];
+    self.timer = [NSTimer timerWithTimeInterval: 0.03
+                                         target: self.weakProxy
+                                       selector: @selector(onTimer:)
+                                       userInfo: nil
+                                        repeats: YES];
 	
 	//run loop will retain the timer object
-	[[NSRunLoop currentRunLoop] addTimer: _timer forMode: NSDefaultRunLoopMode];
+	[[NSRunLoop currentRunLoop] addTimer: self.timer forMode: NSDefaultRunLoopMode];
 }
 
 - (void) dealloc
 {
 	[_image release];
+    _image = nil;
 	
 	if ( _timer != nil && [_timer isValid] )
 		[_timer invalidate]; //timer will be released by run loop
 	
-	_timer = nil;
+    self.weakProxy = nil;
+    
+    [self.timer release];
+	self.timer = nil;
 	
 	[super dealloc];
 }
