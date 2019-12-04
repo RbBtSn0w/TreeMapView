@@ -49,9 +49,9 @@ typedef TMVItem* TMVCellId;
 - (id) itemByCellId: (TMVCellId) cellId;
 	//returns the data item associated with a specific tree map cell (as provided by data source)
 
-- (_Nullable id) selectedItem;
+- (id _Nullable) selectedItem;
 	//returns selected data item
-- (void) selectItemByCellId: (TMVCellId) cellId;
+- (void) selectItemByCellId: (TMVCellId _Nullable) cellId;
 	//selects a treemap cell
 - (void) selectItemByPathToItem: (NSArray*) path;
 	//item to select is identified by path from root to item in question (<root><child1><child2><itemtoSelect>)
